@@ -1,12 +1,41 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "tailpaste",
+  "version": "0.1.0",
+  "type": "module",
   "title": "Tailpaste",
   "description": "Share clipboard text between your Macs over Tailscale.",
   "icon": "icon.png",
   "author": "aabedraba",
-  "categories": ["Productivity"],
+  "categories": [
+    "Productivity"
+  ],
   "license": "MIT",
+  "platforms": [
+    "macOS"
+  ],
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "typecheck": "tsc --noEmit",
+    "publish": "npx @raycast/api@latest publish"
+  },
+  "dependencies": {
+    "@raycast/api": "^2.1.1"
+  },
+  "devDependencies": {
+    "@nubjs/types": "^0.7.5",
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "26.4.0",
+    "@types/react": "19.2.18",
+    "eslint": "^10.9.1",
+    "typescript": "^6.0.0"
+  },
+  "allowBuilds": {
+    "esbuild": true
+  },
   "commands": [
     {
       "name": "push",
@@ -24,7 +53,7 @@
     },
     {
       "name": "push-to",
-      "title": "Push Clipboard To…",
+      "title": "Push Clipboard to…",
       "subtitle": "Tailpaste",
       "description": "Choose which peer to send this clipboard to.",
       "mode": "view"
@@ -40,18 +69,11 @@
       "default": "/usr/local/bin/tailpaste"
     }
   ],
-  "dependencies": {
-    "@raycast/api": "^2.1.1"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "typescript": "^5.6.0"
-  },
-  "scripts": {
-    "build": "ray build -e dist",
-    "dev": "ray develop",
-    "lint": "ray lint",
-    "typecheck": "tsc --noEmit"
+  "devEngines": {
+    "packageManager": {
+      "name": "nub",
+      "version": "^0.7.5",
+      "onFail": "ignore"
+    }
   }
 }

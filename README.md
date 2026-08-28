@@ -215,13 +215,24 @@ gap Taildrop leaves, which is text.
 
 ## Raycast
 
+Needs Node 22.22.2 or newer — that is `@raycast/api` 2.x's own floor, and `npm install` warns
+rather than fails if you are below it.
+
 ```bash
 cd raycast && npm install && npm run dev
 ```
 
-Three commands — Push Clipboard, Pull Clipboard, and Push Clipboard To… (pick a peer). Assign
-hotkeys in Raycast's own settings. The extension shells out to the `tailpaste` binary rather than
-reimplementing the HTTP call, so the token and peer list live in exactly one place.
+`npm run dev` installs the extension into Raycast in development mode and keeps rebuilding. Leave
+it running while you use it; stop it and the commands stay installed. `npm run lint` and
+`npm run build` are what to run before publishing.
+
+Three commands — Push Clipboard, Pull Clipboard, and Push Clipboard to… (pick a peer). Assign
+hotkeys in Raycast's own settings. If the binary isn't at `/usr/local/bin/tailpaste`, point the
+extension at it in Raycast's extension preferences.
+
+The extension shells out to the `tailpaste` binary rather than reimplementing the HTTP call, so
+the token never leaves the binary. It does read `config.json` directly for the peer list in
+Push Clipboard to…, since no subcommand prints just that list.
 
 ## Debugging
 
