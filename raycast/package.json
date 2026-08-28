@@ -1,0 +1,57 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "tailpaste",
+  "title": "Tailpaste",
+  "description": "Share clipboard text between your Macs over Tailscale.",
+  "icon": "icon.png",
+  "author": "aabedraba",
+  "categories": ["Productivity"],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "push",
+      "title": "Push Clipboard",
+      "subtitle": "Tailpaste",
+      "description": "Send this Mac's clipboard to the default peer.",
+      "mode": "no-view"
+    },
+    {
+      "name": "pull",
+      "title": "Pull Clipboard",
+      "subtitle": "Tailpaste",
+      "description": "Fetch the peer's clipboard into this Mac's clipboard.",
+      "mode": "no-view"
+    },
+    {
+      "name": "push-to",
+      "title": "Push Clipboard To…",
+      "subtitle": "Tailpaste",
+      "description": "Choose which peer to send this clipboard to.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "binaryPath",
+      "title": "tailpaste binary",
+      "description": "Path to the tailpaste executable.",
+      "type": "textfield",
+      "required": false,
+      "default": "/usr/local/bin/tailpaste"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "typecheck": "tsc --noEmit"
+  }
+}
