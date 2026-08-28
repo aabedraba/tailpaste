@@ -39,20 +39,42 @@ simplicity choice:
 
 ## Install
 
-On **each** Mac:
+### 1. On Mac A — build and install
 
 ```bash
 git clone https://github.com/aabedraba/tailpaste && cd tailpaste
 ./install/install.sh
 ```
 
-That builds the binary to `/usr/local/bin/tailpaste`, writes
-`~/.config/tailpaste/config.json` with a fresh random token, and loads the launchd agent.
+This builds the binary to `/usr/local/bin/tailpaste`, creates
+`~/.config/tailpaste/config.json` with a fresh random token, and loads the launchd agent so the
+daemon starts at login.
 
-> macOS will ask *"Do you want the application tailpaste to accept incoming network connections?"*
-> on first launch. Click Allow — once.
+> macOS asks *"Do you want the application tailpaste to accept incoming network connections?"* on
+> first launch. Click **Allow** — once.
 
-Then point the two machines at each other. `tailpaste peers` lists your tailnet:
+Note the token it prints:
+
+```
+$ tailpaste init
+config  /Users/you/.config/tailpaste/config.json
+token   3f9a1c04e8b27d6a05fe1188ab34c290
+port    8787
+peers   (none yet — add your other Mac)
+```
+
+### 2. On Mac B — same thing
+
+```bash
+git clone https://github.com/aabedraba/tailpaste && cd tailpaste
+./install/install.sh
+```
+
+Mac B generates its **own** token, which will not match Mac A's. Fixing that is step 4.
+
+### 3. Find the MagicDNS names
+
+On either machine:
 
 ```bash
 $ tailpaste peers
@@ -60,27 +82,76 @@ mac-b.tailnet-name.ts.net                macOS      online
 iphone.tailnet-name.ts.net               iOS        online
 ```
 
-Edit `~/.config/tailpaste/config.json` on Mac A:
+These names are what you put in `peers`. They work from any network.
+
+### 4. Point them at each other, with one shared token
+
+Pick **one** token — Mac A's will do — and use it on both machines.
+
+`~/.config/tailpaste/config.json` on **Mac A**:
 
 ```json
 {
   "port": 8787,
-  "token": "3f9a…",
+  "token": "3f9a1c04e8b27d6a05fe1188ab34c290",
   "peers": ["mac-b.tailnet-name.ts.net"],
   "max_bytes": 1048576
 }
 ```
 
-…and the mirror image on Mac B. **The token must be identical on both machines** — copy the file
-across and just swap the `peers` entry. Then restart both daemons:
+The same file on **Mac B**, with only `peers` different:
+
+```json
+{
+  "port": 8787,
+  "token": "3f9a1c04e8b27d6a05fe1188ab34c290",
+  "peers": ["mac-a.tailnet-name.ts.net"],
+  "max_bytes": 1048576
+}
+```
+
+Since you already have Tailscale, Taildrop is the easiest way to move the file:
+
+```bash
+# on Mac A
+tailscale file cp ~/.config/tailpaste/config.json mac-b:
+# on Mac B — it lands in ~/Downloads
+mv ~/Downloads/config.json ~/.config/tailpaste/config.json
+# then edit "peers" to point back at mac-a
+```
+
+### 5. Restart both daemons and check
+
+The daemon reads its config at startup, so restart it on **both** machines:
 
 ```bash
 launchctl kickstart -k gui/$(id -u)/com.abdallah.tailpaste
 ```
 
+Confirm each machine can see the other:
+
+```bash
+# from Mac A
+curl http://mac-b.tailnet-name.ts.net:8787/health     # ⇒ ok mac-b
+# from Mac B
+curl http://mac-a.tailnet-name.ts.net:8787/health     # ⇒ ok mac-a
+```
+
+Then a real round trip:
+
+```bash
+# on Mac A
+echo "hello from A" | pbcopy && tailpaste push
+# on Mac B
+pbpaste                                                # ⇒ hello from A
+```
+
+If that works, you're done.
+
 ## Use
 
 ```bash
+tailpaste init            # show config path, token and peers
 tailpaste push            # send this clipboard to the first configured peer
 tailpaste pull            # fetch that peer's clipboard into this one
 tailpaste push mac-b      # target a specific peer

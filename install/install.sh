@@ -11,9 +11,9 @@ echo "==> building"
 go build -o /tmp/tailpaste .
 sudo install -m 0755 /tmp/tailpaste /usr/local/bin/tailpaste
 
-# Creates the config with a fresh token on first run.
-/usr/local/bin/tailpaste peers >/dev/null 2>&1 || true
-[ -f "$CONFIG" ] || /usr/local/bin/tailpaste pull >/dev/null 2>&1 || true
+echo "==> config"
+# Creates the config with a fresh random token if this is the first run.
+/usr/local/bin/tailpaste init
 
 PORT=$(sed -n 's/.*"port"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' "$CONFIG" 2>/dev/null || true)
 PORT=${PORT:-8787}

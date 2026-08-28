@@ -53,6 +53,10 @@ func run(args []string) error {
 	}
 
 	switch command {
+	case "init":
+		// loadConfig above created the file if it was missing.
+		return showConfig(cfg)
+
 	case "daemon":
 		return runDaemon(cfg)
 
@@ -94,6 +98,24 @@ func parsePushArgs(args []string) (peer string, fanout bool) {
 		}
 	}
 	return peer, fanout
+}
+
+// showConfig prints what this machine is configured with. Its main job during
+// setup is to show you the token you need to copy to the other Mac.
+func showConfig(cfg *Config) error {
+	path, err := configPath()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("config  %s\n", path)
+	fmt.Printf("token   %s\n", cfg.Token)
+	fmt.Printf("port    %d\n", cfg.Port)
+	if len(cfg.Peers) == 0 {
+		fmt.Printf("peers   (none yet — add your other Mac)\n")
+	} else {
+		fmt.Printf("peers   %s\n", strings.Join(cfg.Peers, ", "))
+	}
+	return nil
 }
 
 // listPeers is a convenience for filling in the config file. The daemon itself
@@ -156,6 +178,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `tailpaste — share clipboard text over Tailscale
 
 Usage:
+  tailpaste init               Create the config if missing, then show it.
   tailpaste daemon             Receive clips. Run this on every machine.
   tailpaste push [peer]        Send this clipboard to a peer.
        --fanout                ...and have that peer relay it onward.
