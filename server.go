@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -51,6 +52,7 @@ func runDaemon(cfg *Config) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", handleHealth)
 	mux.HandleFunc("/clip", protect(cfg, handleClip(cfg)))
+	mux.HandleFunc("/iosclip", protect(cfg, handleIOSClip(cfg)))
 
 	// Bind broadly rather than to the 100.x address: the daemon must survive
 	// starting before Tailscale is up, and Tailscale addresses can change.
@@ -90,34 +92,80 @@ func handleClip(cfg *Config) http.HandlerFunc {
 			w.Write(body)
 
 		case http.MethodPost:
-			r.Body = http.MaxBytesReader(w, r.Body, cfg.MaxBytes)
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				var tooLarge *http.MaxBytesError
-				if errors.As(err, &tooLarge) {
-					http.Error(w, "clipboard too large", http.StatusRequestEntityTooLarge)
-					return
-				}
-				http.Error(w, "cannot read body", http.StatusBadRequest)
+			body, ok := readBody(w, r, cfg.MaxBytes)
+			if !ok {
 				return
 			}
-			if err := writeClipboard(body); err != nil {
-				log.Printf("write clipboard: %v", err)
-				http.Error(w, "cannot write clipboard", http.StatusInternalServerError)
-				return
-			}
-			log.Printf("set clipboard (%d bytes) from %s", len(body), r.RemoteAddr)
-
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			if r.URL.Query().Get("fanout") == "1" {
-				fmt.Fprintf(w, "ok %s\n", relay(cfg, body))
-			} else {
-				fmt.Fprintln(w, "ok")
-			}
+			setClip(cfg, w, r, body)
 
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
+	}
+}
+
+// handleIOSClip is /clip's POST behaviour with a JSON envelope. iOS Shortcuts
+// can only send a JSON body from some actions, so the text arrives wrapped as
+// {"content": "..."} rather than as the raw body.
+func handleIOSClip(cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		raw, ok := readBody(w, r, cfg.MaxBytes)
+		if !ok {
+			return
+		}
+		// A pointer distinguishes {"content": ""} — a deliberate clear — from a
+		// body that forgot the field, which is a shortcut wired up wrong.
+		var envelope struct {
+			Content *string `json:"content"`
+		}
+		if err := json.Unmarshal(raw, &envelope); err != nil {
+			http.Error(w, "body must be JSON", http.StatusBadRequest)
+			return
+		}
+		if envelope.Content == nil {
+			http.Error(w, `body must have a "content" string`, http.StatusBadRequest)
+			return
+		}
+		setClip(cfg, w, r, []byte(*envelope.Content))
+	}
+}
+
+// readBody reads a capped request body, writing the error response itself. The
+// bool reports whether the caller should continue.
+func readBody(w http.ResponseWriter, r *http.Request, maxBytes int64) ([]byte, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			http.Error(w, "clipboard too large", http.StatusRequestEntityTooLarge)
+			return nil, false
+		}
+		http.Error(w, "cannot read body", http.StatusBadRequest)
+		return nil, false
+	}
+	return body, true
+}
+
+// setClip writes the clipboard and answers the request, relaying to peers when
+// fanout=1 was asked for.
+func setClip(cfg *Config, w http.ResponseWriter, r *http.Request, body []byte) {
+	if err := writeClipboard(body); err != nil {
+		log.Printf("write clipboard: %v", err)
+		http.Error(w, "cannot write clipboard", http.StatusInternalServerError)
+		return
+	}
+	log.Printf("set clipboard (%d bytes) from %s", len(body), r.RemoteAddr)
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if r.URL.Query().Get("fanout") == "1" {
+		fmt.Fprintf(w, "ok %s\n", relay(cfg, body))
+	} else {
+		fmt.Fprintln(w, "ok")
 	}
 }
 

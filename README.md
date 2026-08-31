@@ -163,16 +163,22 @@ Bind these to hotkeys via the Raycast extension in `raycast/` — see below.
 ## HTTP API
 
 Small enough to drive entirely from `curl`, which is the point. Bodies are raw `text/plain`,
-never JSON, so an iOS Shortcut can post one without a serialization step.
+never JSON — except on `/iosclip`, which exists only because some iOS Shortcuts actions can
+send a JSON body and nothing else.
 
 | Method | Path | Behaviour |
 |---|---|---|
 | `POST` | `/clip` | Body is the text. Sets this machine's clipboard. |
 | `POST` | `/clip?fanout=1` | …and relays once to every configured peer. |
 | `GET` | `/clip` | Returns this machine's clipboard as `text/plain`. |
+| `POST` | `/iosclip` | Body is `{"content": "<text>"}`. Otherwise identical to `POST /clip`, `fanout=1` included. |
 | `GET` | `/health` | Liveness check. The only unauthenticated route. |
 
-Two independent gates guard `/clip`:
+`/iosclip` requires the `content` key to be present; a body without it is a `400`, since that
+means a shortcut is wired up wrong rather than that you meant to clear the clipboard.
+`{"content": ""}` does clear it.
+
+Two independent gates guard `/clip` and `/iosclip`:
 
 1. The source address must be inside Tailscale's ranges (`100.64.0.0/10` or
    `fd7a:115c:a1e0::/48`), or loopback.
@@ -198,6 +204,10 @@ No app needed — a Shortcut on the share sheet is enough.
 `fanout=1` means the phone sends **one** request and both Macs get the text — so the shortcut
 doesn't need two URL actions, and doesn't fail when one Mac is asleep. A relay failure is reported
 in the response body but still returns `200`, because the clip *did* land somewhere.
+
+If the action you're using can only send JSON, point it at `/iosclip?fanout=1` instead and set
+the body to a **Dictionary** with one key, `content` → `Shortcut Input`. Everything else — auth,
+fanout, the response — is the same.
 
 For the other direction (Mac clipboard → phone), use `GET` on the same URL followed by a
 **Copy to Clipboard** action.
