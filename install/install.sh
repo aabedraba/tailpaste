@@ -18,6 +18,17 @@ echo "==> config"
 PORT=$(sed -n 's/.*"port"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' "$CONFIG" 2>/dev/null || true)
 PORT=${PORT:-8787}
 
+# The daemon gets a tailnet node of its own, so that switching the Tailscale app
+# between a personal and a work profile does not take it off the tailnet its
+# peers are on. Authenticating is interactive and holds the state directory, so
+# it has to happen before the agent is loaded.
+if [ ! -s "$HOME/.config/tailpaste/tsnet/tailscaled.state" ]; then
+    echo "==> joining the tailnet as a node of its own"
+    /usr/local/bin/tailpaste login
+else
+    echo "==> tailnet node already authenticated"
+fi
+
 echo "==> installing $PLIST"
 mkdir -p "$HOME/Library/LaunchAgents"
 # launchd does not expand ~, so bake the real home directory in.

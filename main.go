@@ -60,6 +60,14 @@ func run(args []string) error {
 	case "daemon":
 		return runDaemon(cfg)
 
+	case "login":
+		// An explicit hostname is worth passing when two machines report the
+		// same name, which is common enough with default macOS names.
+		if len(rest) > 0 {
+			cfg.Tsnet.Hostname = rest[0]
+		}
+		return runLogin(cfg)
+
 	case "push":
 		peer, fanout := parsePushArgs(rest)
 		if peer == "" {
@@ -114,6 +122,17 @@ func showConfig(cfg *Config) error {
 		fmt.Printf("peers   (none yet — add your other Mac)\n")
 	} else {
 		fmt.Printf("peers   %s\n", strings.Join(cfg.Peers, ", "))
+	}
+
+	switch {
+	case !cfg.Tsnet.Enabled:
+		fmt.Printf("tsnet   off — the daemon rides on the Tailscale app's tailnet, so\n")
+		fmt.Printf("        switching that app to another profile takes it offline.\n")
+		fmt.Printf("        Run `tailpaste login` to give it a node of its own.\n")
+	case !tsnetHasState(cfg):
+		fmt.Printf("tsnet   %s (not authenticated yet — run `tailpaste login`)\n", cfg.Tsnet.hostname())
+	default:
+		fmt.Printf("tsnet   %s (authenticated)\n", cfg.Tsnet.hostname())
 	}
 	return nil
 }
@@ -179,6 +198,9 @@ func usage() {
 
 Usage:
   tailpaste init               Create the config if missing, then show it.
+  tailpaste login [name]       Join the daemon to a tailnet as a node of its
+                               own, so it keeps working when the Tailscale app
+                               is switched to another profile.
   tailpaste daemon             Receive clips. Run this on every machine.
   tailpaste push [peer]        Send this clipboard to a peer.
        --fanout                ...and have that peer relay it onward.
@@ -193,7 +215,12 @@ HTTP API (this is the contract an iOS Shortcut targets):
   GET  /clip            returns this machine's clipboard as text/plain
   GET  /health          liveness check; the only unauthenticated route
 
-  All /clip requests need:  Authorization: Bearer <token>
+  These two serve this machine's own CLI, which cannot share the daemon's
+  tailnet node, and accept only peers named in the config:
+  POST /relay?peer=X    forward a clip to one peer; clipboard untouched
+  GET  /fetch?peer=X    return one peer's clipboard
+
+  Everything but /health needs:  Authorization: Bearer <token>
   and must originate from a tailnet address.
 
 Config: %s
