@@ -8,6 +8,8 @@ Apple's Universal Clipboard works only when both devices are on the same Wi-Fi a
 
 ## Raycast
 
+<img width="1620" height="1070" alt="CleanShot 2026-10-29 at 14 14 12@2x" src="https://github.com/user-attachments/assets/d14a8296-1b91-4953-bd3f-97530de04e5b" />
+
 The Raycast extension gives you three commands. Give each one a hotkey in Raycast settings.
 
 | Command | What it does | Suggested hotkey |
